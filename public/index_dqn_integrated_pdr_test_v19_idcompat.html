@@ -612,7 +612,7 @@
           currentPosition: "目前位置", transferFloor: "請先前往樓層連接點，再切換到 {floor}。", proceed: "沿著路線前進，目的地是 {name}。",
           wifiPoint: "定位點", scanDesc: "掃描 {scans} 筆，AP {aps} 個", reviewsTitle: "{name} - 評價與評論", noReviews: "目前還沒有人評論，搶先留下第一則評價吧！",
           avgRating: "平均評分：⭐ {avg} / 5.0 ({count} 則評論)", reviewLoadFail: "無法載入評價", enterReview: "請輸入評論內容！", sending: "傳送中...", submitFail: "送出失敗，請稍後再試。",
-          invalidLocation: "定位無效：匹配 AP {count}，尚未更新導航起點。", outsideDqn: "目前定位點不在 K 區 1F DQN 導航範圍。"
+          invalidLocation: "定位無效：匹配 AP {count}，尚未更新導航起點。", outsideDqn: "目前定位點不在 K 區 B1 DQN 導航範圍。"
         },
         en: {
           appTitle: "Underground Mall Indoor Navigation", client: "User", searchPlaceholder: "Search place, facility, or category", search: "Search",
@@ -632,7 +632,7 @@
           currentPosition: "Current location", transferFloor: "Go to the floor connection point, then switch to {floor}.", proceed: "Follow the route to {name}.",
           wifiPoint: "Positioning point", scanDesc: "{scans} scans, {aps} APs", reviewsTitle: "{name} - Ratings & Reviews", noReviews: "No reviews yet. Be the first to leave one!",
           avgRating: "Average rating: ⭐ {avg} / 5.0 ({count} reviews)", reviewLoadFail: "Unable to load reviews", enterReview: "Please enter a review.", sending: "Sending...", submitFail: "Submission failed. Please try again later.",
-          invalidLocation: "Invalid location: {count} matched APs. Navigation start was not updated.", outsideDqn: "Current position is outside the verified K-area 1F DQN navigation range."
+          invalidLocation: "Invalid location: {count} matched APs. Navigation start was not updated.", outsideDqn: "Current position is outside the verified K-area B1 DQN navigation range."
         }
       };
       let currentLang = localStorage.getItem("uiLanguage") === "en" ? "en" : "zh";
@@ -665,8 +665,8 @@
       function uiFloorName(id) {
         const raw = floorName(id);
         if (currentLang !== "en") return raw;
-        if (/ground|地面|一樓|1f|k-floor-grid|網格層/i.test(`${id} ${raw}`)) return "1F";
-        if (/second|二樓|2f|2/i.test(`${id} ${raw}`)) return "2F";
+        if (/ground|地面|一樓|1f|k-floor-grid|網格層/i.test(`${id} ${raw}`)) return "B1";
+        if (/second|二樓|2f|2/i.test(`${id} ${raw}`)) return "R層";
         return raw;
       }
       function applyLanguage() {
@@ -1096,7 +1096,7 @@ function drawPdrCalStop() {
           state.floors = [
             {
               id: FLOOR1_ID,
-              floorName: "1F K區地下街",
+              floorName: "B1 K區地下街",
               imageUrl: "/maps/k_zone_map.png",
               imageWidth: 379.06,
               imageHeight: 122.73,
@@ -1105,7 +1105,7 @@ function drawPdrCalStop() {
             },
             {
               id: FLOOR2_ID,
-              floorName: "2F 機捷層連通道",
+              floorName: "R層 機捷連通道",
               imageUrl: "/maps/k_area_to_airport_2f.jpg",
               imageLeft: 0,
               imageTop: 0,
@@ -1790,8 +1790,8 @@ drawCurrent();
         ctx.font = "600 13px system-ui, sans-serif";
         ctx.textAlign = "center";
         const title = currentLang === "en"
-          ? "2F MRT Connection Corridor (schematic)"
-          : "2F 機捷層連通道（定位示意）";
+          ? "R Floor MRT Connection Corridor (schematic)"
+          : "R層 機捷連通道（定位示意）";
         ctx.fillText(title, canvas.getBoundingClientRect().width / 2, 24);
         ctx.restore();
       }
@@ -2221,7 +2221,7 @@ drawCurrent();
         if (!DEBUG_MAP_TAP_DQN) return;
         if (state.currentFloorId !== FLOOR1_ID) {
           if (k4DebugPanel) {
-            k4DebugPanel.textContent = "K4 校正只在 1F 啟用，請切回 1F。";
+            k4DebugPanel.textContent = "K4 校正只在 B1 啟用，請切回 B1。";
           }
           return;
         }
@@ -2549,8 +2549,8 @@ drawCurrent();
       }
       function shortFloorName(floor, index) {
         const name = floor.floorName || floor.name || floor.id;
-        if (/ground|地面|一樓|1f/i.test(`${floor.id} ${name}`)) return "1F";
-        if (/second|二樓|2f|2/i.test(`${floor.id} ${name}`)) return "2F";
+        if (/ground|地面|一樓|1f/i.test(`${floor.id} ${name}`)) return "B1";
+        if (/second|二樓|2f|2/i.test(`${floor.id} ${name}`)) return "R層";
         return name.length <= 3 ? name : `${index + 1}F`;
       }
       function isSecondFloor(id) {
@@ -2917,7 +2917,7 @@ drawCurrent();
           state.current.floorId !== FLOOR1_ID ||
           state.currentFloorId !== FLOOR1_ID
         ) {
-          updatePdrDebug("PDR WAIT：目前 v16 先驗證 1F");
+          updatePdrDebug("PDR WAIT：目前 v16 先驗證 B1");
           updatePdrSyncDebug("BLOCK FLOOR");
           return;
         }
