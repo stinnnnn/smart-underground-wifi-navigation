@@ -296,7 +296,7 @@ def get_floors(mapId: str = ""):
     return [
         {
             "id": "k-area-airport-1f",
-            "floorName": "K區地下街",
+            "floorName": "B1 K區地下街",
             "imageUrl": "k_area_to_airport_1f.jpg",
             "imageLeft": 0,
             "imageTop": 0,
@@ -304,7 +304,7 @@ def get_floors(mapId: str = ""):
         },
         {
             "id": "k-area-airport-mrt",
-            "floorName": "機捷層連通道",
+            "floorName": "R層 機捷連通道",
             "imageUrl": "k_area_to_airport_2f.jpg",
             "imageLeft": 0,
             "imageTop": 0,
@@ -359,7 +359,7 @@ def get_shortest_path(req: GridPathRequest):
         if anchor_pos is None:
             raise HTTPException(
                 status_code=400,
-                detail="目前定位點不是已驗證的 K 區 1F DQN Anchor"
+                detail="目前定位點不是已驗證的 K 區 B1 DQN Anchor"
             )
         start_xy = (int(anchor_pos["x"]), int(anchor_pos["y"]))
 
