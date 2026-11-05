@@ -111,11 +111,17 @@ def locate_real(req: RealWifiRequest, request: Request):
             else "unknown"
         )
         now = time.monotonic()
+        # Cache only truly identical Wi-Fi scans. Distinct scans must be localized,
+        # even when requests come from the same IP address within 8 seconds.
+        scan_signature = tuple(sorted(
+            (item.bssid.lower().strip(), int(item.level)) for item in req.signals
+        ))
 
         previous = _last_real_by_client.get(client_key)
         if previous is not None:
             elapsed = now - previous["time"]
-            if elapsed < REAL_DEDUPE_SECONDS:
+            if (elapsed < REAL_DEDUPE_SECONDS
+                    and previous.get("scan_signature") == scan_signature):
                 cached = dict(previous["result"])
                 cached["deduplicated"] = True
                 cached["dedupeAgeSeconds"] = round(elapsed, 3)
@@ -156,6 +162,7 @@ def locate_real(req: RealWifiRequest, request: Request):
 
         _last_real_by_client[client_key] = {
             "time": now,
+            "scan_signature": scan_signature,
             "result": dict(result),
         }
 
