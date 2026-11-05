@@ -4,6 +4,7 @@ import joblib
 import numpy as np
 import pandas as pd
 from collections import deque
+from threading import RLock
 
 
 class WifiLocatorV4:
@@ -59,9 +60,9 @@ class WifiLocatorV4:
 
 
 
-        self.last_floor = None
-        self.stable_anchor = {}
-        self.raw_history = {}
+        # Keep anchor stabilization histories independent between client sessions.
+        self._session_states = {}
+        self._session_lock = RLock()
 
     def _signal_pair(self, item: Any):
         if isinstance(item, dict):
@@ -149,7 +150,7 @@ class WifiLocatorV4:
 
         return best_anchor, best_score, second_anchor, second_score
 
-    def predict(self, signals):
+    def predict(self, signals, session_id=None):
         X, diagnostics, matched_features = self.build_feature_row(signals)
 
         if diagnostics["matchedFeatureCount"] < 5:
@@ -183,37 +184,51 @@ class WifiLocatorV4:
             self._predict_anchor_observed_mae(X, floor, matched_features)
         )
 
-        if self.last_floor != floor:
-            self.last_floor = floor
-            self.stable_anchor[floor] = raw_anchor_id
-            self.raw_history[floor] = deque([raw_anchor_id], maxlen=3)
-        else:
-            if floor not in self.raw_history:
-                self.raw_history[floor] = deque(maxlen=3)
+        # A shared model serves all clients, so its history must be session-scoped.
+        session_key = str(session_id) if session_id else "legacy"
+        with self._session_lock:
+            if session_key not in self._session_states:
+                # Bound in-memory session state to avoid unlimited growth.
+                if len(self._session_states) >= 512:
+                    oldest_key = next(iter(self._session_states))
+                    del self._session_states[oldest_key]
+                self._session_states[session_key] = {
+                    "last_floor": None,
+                    "stable_anchor": {},
+                    "raw_history": {},
+                }
 
-            history = self.raw_history[floor]
-            history.append(raw_anchor_id)
+            state = self._session_states[session_key]
+            stable_anchor = state["stable_anchor"]
+            raw_history = state["raw_history"]
 
-            stable = self.stable_anchor.get(floor)
-            if stable is None:
-                self.stable_anchor[floor] = raw_anchor_id
+            if state["last_floor"] != floor:
+                state["last_floor"] = floor
+                stable_anchor[floor] = raw_anchor_id
+                raw_history[floor] = deque([raw_anchor_id], maxlen=3)
             else:
+                if floor not in raw_history:
+                    raw_history[floor] = deque(maxlen=3)
 
+                history = raw_history[floor]
+                history.append(raw_anchor_id)
 
+                stable = stable_anchor.get(floor)
+                if stable is None:
+                    stable_anchor[floor] = raw_anchor_id
+                else:
+                    counts = {}
+                    for a in history:
+                        counts[a] = counts.get(a, 0) + 1
 
-                counts = {}
-                for a in history:
-                    counts[a] = counts.get(a, 0) + 1
+                    majority_anchor = max(
+                        counts,
+                        key=lambda a: (counts[a], 1 if a == raw_anchor_id else 0)
+                    )
+                    if majority_anchor != stable and counts[majority_anchor] >= 2:
+                        stable_anchor[floor] = majority_anchor
 
-                majority_anchor = max(
-                    counts,
-                    key=lambda a: (counts[a], 1 if a == raw_anchor_id else 0)
-                )
-
-                if majority_anchor != stable and counts[majority_anchor] >= 2:
-                    self.stable_anchor[floor] = majority_anchor
-
-        anchor_id = self.stable_anchor[floor]
+            anchor_id = stable_anchor[floor]
         z, pred_y, pred_x = self.anchor_coords[anchor_id]
 
         pixel_anchor_2f = {
