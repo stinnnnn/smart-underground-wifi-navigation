@@ -82,6 +82,7 @@ class WifiSignal(BaseModel):
 
 class RealWifiRequest(BaseModel):
     signals: List[WifiSignal]
+    sessionId: Optional[str] = None
 
 
 class DemoLocateRequest(BaseModel):
@@ -105,17 +106,23 @@ def locate_real(req: RealWifiRequest, request: Request):
         )
 
     try:
+        # New clients supply an anonymous per-page session key; legacy clients use IP.
         client_key = (
-            request.client.host
-            if request.client is not None
-            else "unknown"
+            req.sessionId.strip()[:80]
+            if req.sessionId and req.sessionId.strip()
+            else (request.client.host if request.client is not None else "unknown")
         )
         now = time.monotonic()
+        # Reuse a cached position only when the observed BSSID/RSSI list is identical.
+        scan_signature = tuple(sorted(
+            (item.bssid.lower().strip(), int(item.level)) for item in req.signals
+        ))
 
         previous = _last_real_by_client.get(client_key)
         if previous is not None:
             elapsed = now - previous["time"]
-            if elapsed < REAL_DEDUPE_SECONDS:
+            if (elapsed < REAL_DEDUPE_SECONDS
+                    and previous.get("scan_signature") == scan_signature):
                 cached = dict(previous["result"])
                 cached["deduplicated"] = True
                 cached["dedupeAgeSeconds"] = round(elapsed, 3)
@@ -128,7 +135,7 @@ def locate_real(req: RealWifiRequest, request: Request):
                 )
                 return cached
 
-        result = real_locator_v4.predict(req.signals)
+        result = real_locator_v4.predict(req.signals, session_id=client_key)
 
 
 
@@ -154,8 +161,12 @@ def locate_real(req: RealWifiRequest, request: Request):
                 }
 
 
+        # Bound cache entries for sessions created by page reloads.
+        if client_key not in _last_real_by_client and len(_last_real_by_client) >= 512:
+            _last_real_by_client.pop(next(iter(_last_real_by_client)))
         _last_real_by_client[client_key] = {
             "time": now,
+            "scan_signature": scan_signature,
             "result": dict(result),
         }
 
