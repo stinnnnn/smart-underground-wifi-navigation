@@ -163,6 +163,9 @@ def locate_real(req: RealWifiRequest, request: Request):
                 }
 
 
+        # Bound cache entries because browser sessions can be renewed on reload.
+        if client_key not in _last_real_by_client and len(_last_real_by_client) >= 512:
+            _last_real_by_client.pop(next(iter(_last_real_by_client)))
         _last_real_by_client[client_key] = {
             "time": now,
             "scan_signature": scan_signature,
