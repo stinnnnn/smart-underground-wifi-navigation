@@ -82,6 +82,7 @@ class WifiSignal(BaseModel):
 
 class RealWifiRequest(BaseModel):
     signals: List[WifiSignal]
+    sessionId: Optional[str] = None
 
 
 class DemoLocateRequest(BaseModel):
@@ -105,10 +106,12 @@ def locate_real(req: RealWifiRequest, request: Request):
         )
 
     try:
+        # New clients provide a per-page session ID; older clients fall back to IP.
+        # Keep this distinct from user identity (it is only a short-lived state key).
         client_key = (
-            request.client.host
-            if request.client is not None
-            else "unknown"
+            req.sessionId.strip()[:80]
+            if req.sessionId and req.sessionId.strip()
+            else (request.client.host if request.client is not None else "unknown")
         )
         now = time.monotonic()
         # Cache only truly identical Wi-Fi scans. Distinct scans must be localized,
@@ -134,7 +137,7 @@ def locate_real(req: RealWifiRequest, request: Request):
                 )
                 return cached
 
-        result = real_locator_v4.predict(req.signals)
+        result = real_locator_v4.predict(req.signals, session_id=client_key)
 
 
 
