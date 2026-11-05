@@ -3097,6 +3097,12 @@ drawCurrent();
         return;
       }
 
+      // Per-page, anonymous session key keeps anchor smoothing device-specific.
+      const realWifiSessionId =
+        (window.crypto && typeof window.crypto.randomUUID === "function")
+          ? window.crypto.randomUUID()
+          : "navi-" + Date.now() + "-" + Math.random().toString(36).slice(2);
+
       async function submitRealWifiScan(signals) {
         if (!Array.isArray(signals) || signals.length === 0) {
           console.warn("REAL Wi-Fi 掃描為空");
@@ -3107,7 +3113,7 @@ drawCurrent();
           const response = await fetch(`${API_BASE}/api/locate-real`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ signals }),
+            body: JSON.stringify({ signals, sessionId: realWifiSessionId }),
           });
 
           if (!response.ok) {
